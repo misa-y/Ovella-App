@@ -234,7 +234,6 @@ function header(title, subtitle, action = '') {
 const views = {
   home() {
     const trends = analyzePainTrends(30);
-    const suggestions = generateSupportSuggestions(trends.entries);
     return `
       <section class="screen">
         ${header('Ovella', todayText())}
