@@ -10,6 +10,8 @@ const state = {
   notifications: false,
 };
 
+const memoryStore = {};
+
 const icons = {
   home: '<svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>',
   zap: '<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
@@ -61,14 +63,38 @@ function makeId(prefix) {
 
 function readCollection(key) {
   try {
-    return JSON.parse(localStorage.getItem(key)) || [];
+    return JSON.parse(readStorage(key)) || [];
   } catch {
     return [];
   }
 }
 
 function writeCollection(key, records) {
-  localStorage.setItem(key, JSON.stringify(records));
+  writeStorage(key, JSON.stringify(records));
+}
+
+function readStorage(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return memoryStore[key] || null;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    memoryStore[key] = value;
+  }
+}
+
+function removeStorage(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    delete memoryStore[key];
+  }
 }
 
 function getPainEntries() {
@@ -477,7 +503,7 @@ function bindActions() {
   const resetButton = document.querySelector('[data-reset-demo]');
   if (resetButton) {
     resetButton.addEventListener('click', () => {
-      Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+      Object.values(STORAGE_KEYS).forEach((key) => removeStorage(key));
       state.latestReport = '';
       seedDemoData();
       render();
