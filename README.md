@@ -12,3 +12,6 @@ Ovella's App concept. Symptom tracker with advocacy report generator. Wearable c
 - Advocacy report generator
 - Basic settings screen
 - Local browser storage using `localStorage`
+
+## Notes
+Ovella is meant to inform users and healthcare conversations, not make medical decisions. The app organizes self-reported symptom data so users can better explain their experiences, but any diagnosis, treatment, or medical decision should be made with a qualified healthcare professional.
