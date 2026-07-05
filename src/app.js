@@ -1,16 +1,24 @@
+Paste this as your full `src/app.js`:
+
+```js
 const STORAGE_KEYS = {
   painEntries: 'ovella:painEntries',
+  reliefSessions: 'ovella:reliefSessions',
   reports: 'ovella:advocacyReports',
+  hasWearable: 'ovella:hasHaloWearable',
+  stimulationPattern: 'ovella:stimulationPattern',
 };
+
+const memoryStore = {};
 
 const state = {
   activeTab: 'home',
   selectedPain: 6,
   latestReport: '',
+  hasWearable: readStorage('ovella:hasHaloWearable') === 'true',
+  stimulationPattern: readStorage('ovella:stimulationPattern') || 'Wave',
   notifications: false,
 };
-
-const memoryStore = {};
 
 const icons = {
   home: '<svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>',
@@ -18,6 +26,7 @@ const icons = {
   calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>',
   settings: '<svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.04.04a2.1 2.1 0 0 1-3 3l-.04-.04a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1 1.64V21a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1-1.64 1.8 1.8 0 0 0-2 .36l-.04.04a2.1 2.1 0 0 1-3-3l.04-.04a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.64-1H3a2.1 2.1 0 0 1 0-4.2h.06a1.8 1.8 0 0 0 1.64-1 1.8 1.8 0 0 0-.36-2L4.3 6.4a2.1 2.1 0 0 1 3-3l.04.04a1.8 1.8 0 0 0 2 .36 1.8 1.8 0 0 0 1-1.64V2a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1 1.64 1.8 1.8 0 0 0 2-.36l.04-.04a2.1 2.1 0 0 1 3 3l-.04.04a1.8 1.8 0 0 0-.36 2c.25.61.85 1 1.5 1H22a2.1 2.1 0 0 1 0 4.2h-.06a1.8 1.8 0 0 0-1.64 1z"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  bluetooth: '<svg viewBox="0 0 24 24"><path d="m7 7 10 10-5 4V3l5 4L7 17"/></svg>',
   sparkles: '<svg viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 14l.7 1.8L8 16.5l-2.3.7L5 19l-.7-1.8L2 16.5l2.3-.7z"/></svg>',
   trend: '<svg viewBox="0 0 24 24"><path d="m3 7 6 6 4-4 8 8"/><path d="M21 11v6h-6"/></svg>',
   alert: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>',
@@ -36,6 +45,7 @@ const icons = {
 const tabs = [
   ['home', 'Home', icons.home],
   ['history', 'Report', icons.calendar],
+  ['session', 'Wearable', icons.zap],
   ['settings', 'Settings', icons.settings],
 ];
 
@@ -105,7 +115,10 @@ function getReports() {
   return readCollection(STORAGE_KEYS.reports);
 }
 
-// PainEntry creation is the app's small mock-backend write path for daily check-ins.
+function getReliefSessions() {
+  return readCollection(STORAGE_KEYS.reliefSessions).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function savePainEntry(input) {
   const entry = {
     id: makeId('pain'),
@@ -125,6 +138,23 @@ function savePainEntry(input) {
   return entry;
 }
 
+function saveReliefSession(input) {
+  const session = {
+    id: makeId('session'),
+    date: input.date || isoDate(),
+    heatLevel: input.heatLevel || 'Medium',
+    tensLevel: input.tensLevel || state.stimulationPattern,
+    sessionDuration: Number(input.sessionDuration) || 20,
+    startingPainLevel: Number(input.startingPainLevel) || 0,
+    endingPainLevel: Number(input.endingPainLevel) || 0,
+    skinTemperature: input.skinTemperature || 'Normal',
+    safetyStatus: input.safetyStatus || 'Comfortable',
+    createdAt: new Date().toISOString(),
+  };
+  writeCollection(STORAGE_KEYS.reliefSessions, [...getReliefSessions(), session]);
+  return session;
+}
+
 function recentEntries(days = 30) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days + 1);
@@ -142,7 +172,6 @@ function mostCommon(values) {
     .map(([value]) => value);
 }
 
-// Trend analysis powers the dashboard, chart, suggestions, and advocacy report.
 function analyzePainTrends(days = 30) {
   const entries = recentEntries(days);
   const painLevels = entries.map((entry) => Number(entry.painLevel));
@@ -182,6 +211,20 @@ function generateAdvocacyReport(days = 30) {
   writeCollection(STORAGE_KEYS.reports, [...getReports(), report]);
   state.latestReport = text;
   return report;
+}
+
+function estimateAdaptiveSettings(painLevel, energyLevel = 'Medium') {
+  const normalizedPain = Math.min(Math.max(Number(painLevel) || 0, 0), 10) / 10;
+  const fatigue = energyLevel === 'Low' ? 0.8 : energyLevel === 'High' ? 0.25 : 0.5;
+  const amplitude = Math.min(60, Math.max(10, 10 + 40 * normalizedPain + 5 * fatigue));
+  const frequency = fatigue > 0.6 ? 2 + 8 * normalizedPain : 60 + 60 * normalizedPain;
+  const pulseWidth = Math.min(400, Math.max(100, 100 + 250 * normalizedPain));
+
+  return {
+    amplitude: amplitude.toFixed(1),
+    frequency: frequency.toFixed(1),
+    pulseWidth: pulseWidth.toFixed(0),
+  };
 }
 
 function seedDemoData() {
@@ -281,6 +324,57 @@ const views = {
       </section>
     `;
   },
+  session() {
+    const latest = recentEntries(30).at(-1);
+    const settings = estimateAdaptiveSettings(latest?.painLevel || state.selectedPain, latest?.energyLevel);
+
+    return `
+      <section class="screen">
+        ${header('Wearable', 'Ovella Halo concept')}
+        ${!state.hasWearable ? `
+          <article class="card prediction-card">
+            <div class="row-start">
+              <div class="soft-icon muted">${icon('phone')}</div>
+              <div>
+                <h2>Ovella Halo Wearable required</h2>
+                <p>Wearable features use the Ovella Halo concept for localized heat and TENS support. Enable it in Settings if you have one.</p>
+              </div>
+            </div>
+            <button class="primary-button top-space" type="button" data-open-settings>Go to Settings</button>
+          </article>
+        ` : `
+          <article class="card prediction-card">
+            <div class="row-start">
+              <div class="soft-icon purple">${icon('waves')}</div>
+              <div>
+                <h2>Wearable relief settings</h2>
+                <p>Current concept mode: heat with ${state.stimulationPattern.toLowerCase()} TENS support. Demo values: ${settings.amplitude} mA, ${settings.frequency} Hz, ${settings.pulseWidth} us.</p>
+              </div>
+            </div>
+          </article>
+          <article class="card screening-card">
+            <form id="session-form">
+              <div class="card-title-row"><h2>Save wearable session</h2><button class="text-action" type="submit">${icon('plus')}Save</button></div>
+              <div class="form-grid">
+                ${field('date', 'Date', 'date', isoDate())}
+                ${selectField('heatLevel', 'Heat', ['Low', 'Medium', 'High'])}
+                ${selectField('tensLevel', 'TENS pattern', ['Wave', 'Pulse', 'Gentle', 'Deep', 'Cycle'], state.stimulationPattern)}
+                ${field('sessionDuration', 'Minutes', 'number', 20)}
+                ${field('startingPainLevel', 'Start pain', 'number', latest?.painLevel || 6)}
+                ${field('endingPainLevel', 'End pain', 'number', Math.max(0, (latest?.painLevel || 6) - 2))}
+                ${selectField('skinTemperature', 'Skin temp', ['Normal', 'Warm', 'Cool'])}
+                ${selectField('safetyStatus', 'Safety', ['Comfortable', 'Paused', 'Stopped'])}
+              </div>
+            </form>
+          </article>
+          <article class="card dashboard-card">
+            <h2>Saved wearable sessions</h2>
+            ${sessionList()}
+          </article>
+        `}
+      </section>
+    `;
+  },
   history() {
     const trends = analyzePainTrends(30);
     return `
@@ -320,6 +414,18 @@ const views = {
           ${settingRow('heart', 'Last Period', `<button class="select-button" type="button">${isoDate(-6)} ${icon('calendar')}</button>`)}
         </article>
         <article class="card settings-card">
+          <h3 class="section-label">Ovella Halo Wearable</h3>
+          ${settingRow('phone', 'I have the Ovella Halo Wearable', switchButton('hasWearable'))}
+          ${state.hasWearable ? '<p class="muted-line">Wearable features are enabled.</p>' : '<p class="muted-line">Wearable features are hidden for now. Turn this on later if you get the Ovella Halo Wearable.</p>'}
+        </article>
+        ${state.hasWearable ? `
+          <article class="card settings-card">
+            <h3 class="section-label">Device Settings</h3>
+            ${settingRow('bluetooth', 'Connected Device', '<span class="status-dot"><i></i>Not connected</span>')}
+            ${settingRow('zap', 'Stimulation Pattern', settingSelect('stimulationPattern', ['Wave', 'Pulse', 'Gentle', 'Deep', 'Cycle']))}
+          </article>
+        ` : ''}
+        <article class="card settings-card">
           <h3 class="section-label">Notifications</h3>
           ${settingRow('bell', 'Enable Notifications', switchButton('notifications'))}
         </article>
@@ -336,6 +442,14 @@ function field(name, label, type, value = '', placeholder = '') {
 
 function selectField(name, label, options, selectedValue = '') {
   return `<label>${label}<select name="${name}">${options.map((option) => `<option value="${option}" ${option === selectedValue ? 'selected' : ''}>${option}</option>`).join('')}</select></label>`;
+}
+
+function settingSelect(key, options) {
+  return `
+    <select class="select-button" data-setting-select="${key}" aria-label="${key}">
+      ${options.map((option) => `<option value="${option}" ${state[key] === option ? 'selected' : ''}>${option}</option>`).join('')}
+    </select>
+  `;
 }
 
 function trendStats(trends) {
@@ -411,6 +525,17 @@ function generatePreviewReport(trends) {
   return `Generate a factual summary from ${trends.totalEntries} recent logs: pain levels, symptoms, pain location, missed activities, and recent patterns.`;
 }
 
+function sessionList() {
+  const sessions = getReliefSessions().slice(-4).reverse();
+  if (!sessions.length) return '<p class="muted-line">No wearable sessions saved yet.</p>';
+  return `<div class="log-list">${sessions.map((session) => `
+    <div>
+      <strong>${session.date}</strong>
+      <span>${session.sessionDuration} min, ${session.heatLevel} heat, ${session.tensLevel} pattern, ${session.startingPainLevel}/10 to ${session.endingPainLevel}/10</span>
+    </div>
+  `).join('')}</div>`;
+}
+
 function insight(iconName, tone, text) {
   return `<div class="insight"><span class="mini-icon ${tone}">${icon(iconName)}</span><p>${text}</p></div>`;
 }
@@ -466,9 +591,31 @@ function bindActions() {
     button.addEventListener('click', () => {
       const key = button.dataset.switch;
       state[key] = !state[key];
+      if (key === 'hasWearable') {
+        writeStorage(STORAGE_KEYS.hasWearable, String(state.hasWearable));
+      }
       render();
     });
   });
+
+  document.querySelectorAll('[data-setting-select]').forEach((select) => {
+    select.addEventListener('change', () => {
+      const key = select.dataset.settingSelect;
+      state[key] = select.value;
+      if (key === 'stimulationPattern') {
+        writeStorage(STORAGE_KEYS.stimulationPattern, state.stimulationPattern);
+      }
+      render();
+    });
+  });
+
+  const openSettings = document.querySelector('[data-open-settings]');
+  if (openSettings) {
+    openSettings.addEventListener('click', () => {
+      state.activeTab = 'settings';
+      render();
+    });
+  }
 
   const painForm = document.querySelector('#pain-form');
   if (painForm) {
@@ -487,6 +634,16 @@ function bindActions() {
         missedActivity: formData.get('missedActivity') === 'on',
         notes: formData.get('notes'),
       });
+      render();
+    });
+  }
+
+  const sessionForm = document.querySelector('#session-form');
+  if (sessionForm) {
+    sessionForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(sessionForm);
+      saveReliefSession(Object.fromEntries(formData.entries()));
       render();
     });
   }
