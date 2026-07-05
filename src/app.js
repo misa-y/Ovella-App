@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   reports: 'ovella:advocacyReports',
   hasWearable: 'ovella:hasHaloWearable',
   stimulationPattern: 'ovella:stimulationPattern',
+  userName: 'ovella:userName',
 };
 
 const memoryStore = {};
@@ -12,6 +13,8 @@ const state = {
   activeTab: 'home',
   selectedPain: 6,
   latestReport: '',
+  userName: readStorage('ovella:userName') || '',
+  showLogin: !readStorage('ovella:userName'),
   hasWearable: readStorage('ovella:hasHaloWearable') === 'true',
   stimulationPattern: readStorage('ovella:stimulationPattern') || 'Wave',
   notifications: false,
@@ -254,9 +257,32 @@ function seedDemoData() {
 
 function render() {
   const app = document.querySelector('#app');
+  if (state.showLogin) {
+    app.innerHTML = loginView();
+    document.querySelector('#bottom-nav').innerHTML = '';
+    bindActions();
+    return;
+  }
   app.innerHTML = views[state.activeTab]();
   renderNav();
   bindActions();
+}
+
+function loginView() {
+  return `
+    <section class="login-screen">
+      <div class="login-mark">${icon('heart')}</div>
+      <h1>Ovella</h1>
+      <p>Track pelvic pain, understand patterns, and create clear reports from your symptom history.</p>
+      <form id="login-form" class="login-card">
+        <label>Your name
+          <input name="userName" type="text" placeholder="Enter your name" autocomplete="name" required>
+        </label>
+        <button class="primary-button" type="submit">Continue</button>
+      </form>
+      <small>Ovella is meant to inform, not make medical decisions.</small>
+    </section>
+  `;
 }
 
 function header(title, subtitle, action = '') {
@@ -276,7 +302,7 @@ const views = {
     const trends = analyzePainTrends(30);
     return `
       <section class="screen">
-        ${header('Ovella', todayText())}
+        ${header(state.userName ? `Hi, ${state.userName}` : 'Ovella', todayText())}
         <article class="card pain-card">
           <form id="pain-form">
             <div class="card-title-row">
@@ -404,7 +430,7 @@ const views = {
       <section class="screen settings-screen">
         ${header('Settings', 'Manage your profile and preferences')}
         <article class="card settings-card">
-          <div class="user-row"><div class="avatar">${icon('user')}</div><h2>Demo User</h2></div>
+          <div class="user-row"><div class="avatar">${icon('user')}</div><h2>${state.userName || 'User'}</h2></div>
           <hr>
           <h3 class="section-label">Cycle Information</h3>
           ${settingRow('calendar', 'Cycle Length', `<button class="select-button" type="button">28 days ${icon('chevronDown')}</button>`)}
