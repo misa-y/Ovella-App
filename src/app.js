@@ -193,6 +193,34 @@ function analyzePainTrends(days = 30) {
   };
 }
 
+function homeSuggestionCard(trends) {
+  if (trends.totalEntries < 3) return '';
+
+  const repeatedSymptom = trends.mostCommonSymptoms[0];
+  const latestEntry = trends.entries[trends.entries.length - 1];
+
+  let suggestion = '';
+
+  if (trends.highPainDays >= 2) {
+    suggestion = 'Recent logs show multiple high pain days. Consider rest, hydration, using relief mode if available, or creating an advocacy report before a doctor visit.';
+  } else if (repeatedSymptom && trends.entries.filter((entry) => (entry.symptoms || []).includes(repeatedSymptom)).length >= 3) {
+    suggestion = `${repeatedSymptom} has appeared often in recent logs. Tracking when it happens may help explain the pattern to a healthcare provider.`;
+  } else if (trends.missedActivityDays >= 2) {
+    suggestion = 'Recent logs show pain has affected school, work, or activities more than once. An advocacy report may help clearly show this impact.';
+  } else if (latestEntry && Number(latestEntry.painLevel) >= 7) {
+    suggestion = 'The most recent pain log was high. Consider gentle rest, hydration, heat if helpful, and noting what changes the pain.';
+  }
+
+  if (!suggestion) return '';
+
+  return `
+    <article class="card suggestion-card">
+      <div class="suggestion-label">${icon('sparkles')} Pattern noticed</div>
+      <p>${suggestion}</p>
+    </article>
+  `;
+}
+
 function generateAdvocacyReport(days = 30) {
   const trends = analyzePainTrends(days);
   const symptoms = trends.mostCommonSymptoms.length ? trends.mostCommonSymptoms.join(', ') : 'not enough symptoms logged yet';
@@ -302,8 +330,9 @@ const views = {
     const trends = analyzePainTrends(30);
     return `
       <section class="screen">
-        ${header(state.userName ? `Hi, ${state.userName}` : 'Ovella', todayText())}
-        <article class="card pain-card">
+          ${header(state.userName ? `Hi, ${state.userName}` : 'Ovella', todayText())}
+          ${homeSuggestionCard(trends)}
+          <article class="card pain-card">
           <form id="pain-form">
             <div class="card-title-row">
               <h2>Daily pain check-in</h2>
