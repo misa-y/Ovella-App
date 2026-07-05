@@ -354,6 +354,10 @@ h2 {
   font-size: 14px;
 }
 
+.top-space {
+  margin-top: 18px;
+}
+
 .pill-button {
   min-height: 38px;
   padding: 0 17px;
