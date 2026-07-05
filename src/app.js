@@ -603,6 +603,19 @@ function bindActions() {
     });
   });
 
+  const loginForm = document.querySelector('#login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(loginForm);
+      const name = String(formData.get('userName') || '').trim() || 'User';
+      state.userName = name;
+      state.showLogin = false;
+      writeStorage(STORAGE_KEYS.userName, name);
+      render();
+    });
+  }
+
   document.querySelectorAll('[data-pain]').forEach((button) => {
     button.addEventListener('click', () => {
       state.selectedPain = Number(button.dataset.pain);
@@ -685,6 +698,16 @@ function bindActions() {
       Object.values(STORAGE_KEYS).forEach((key) => removeStorage(key));
       state.latestReport = '';
       seedDemoData();
+      render();
+    });
+  }
+
+  const signOut = document.querySelector('.sign-out');
+  if (signOut) {
+    signOut.addEventListener('click', () => {
+      removeStorage(STORAGE_KEYS.userName);
+      state.userName = '';
+      state.showLogin = true;
       render();
     });
   }
