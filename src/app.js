@@ -1,6 +1,3 @@
-Paste this as your full `src/app.js`:
-
-```js
 const STORAGE_KEYS = {
   painEntries: 'ovella:painEntries',
   reliefSessions: 'ovella:reliefSessions',
